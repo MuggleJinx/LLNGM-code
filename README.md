@@ -26,11 +26,17 @@ This repository specifically focuses on:
 
 ---
 
-## Installation & Requirements
+## Software: ngme2
 
-The core framework is implemented in the `ngme2` package, which utilizes a high-performance C++ backend (Eigen, Cholmod, PARDISO).
+The core framework is implemented in the `ngme2` R package. It provides a comprehensive set of tools for modeling non-Gaussian processes with a high-performance C++ backend.
+
+- **Official Website:** [https://davidbolin.github.io/ngme2/](https://davidbolin.github.io/ngme2/)
+- **GitHub Repository:** [https://github.com/davidbolin/ngme2](https://github.com/davidbolin/ngme2)
+
+### Installation
+
+You can install the **stable version** of `ngme2` directly from the official repository:
 
 ```R
-# Install the development version from GitHub
-# install.packages("devtools")
-devtools::install_github("davidbolin/ngme2")
+install.packages("ngme2", repos = "[https://davidbolin.github.io/ngme2/](https://davidbolin.github.io/ngme2/)")
+```
