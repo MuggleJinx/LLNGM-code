@@ -24,7 +24,8 @@ fit_gauss_ns <- readRDS("model-fits/climate-fit-gauss-ns.rds")
 fit_nig <- readRDS("model-fits/climate-fit-nig.rds")
 fit_nig_ns <- readRDS("model-fits/climate-fit-nig-ns.rds")
 
-df_last_year <- df[df$year == max(df$year), ]
+# df_last_year <- df[df$year == max(df$year), ]
+df_1989 <- df[df$year == 11, ]
 cv_result <- ngme2::cross_validation(
   list(
     gauss_ns = fit_gauss_ns,
@@ -32,7 +33,7 @@ cv_result <- ngme2::cross_validation(
     nig = fit_nig,
     nig_ns = fit_nig_ns
   ),
-  data = df_last_year,
+  data = df_1989,
   type = "k-fold",
   seed = 1,
   k = 10,

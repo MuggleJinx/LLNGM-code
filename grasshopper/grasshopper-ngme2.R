@@ -122,24 +122,22 @@ gg <- ggplot(data, aes(x = Year, y = Number)) +
 gg
 ggsave("Figures/grasshopper.png", width = 6, height = 4)
 
-
-# Set control parameters for ngme
-control <- control_opt(
-  start_sd = 0.1,
-  iterations = 100000,
-  rao_blackwell = TRUE,
-  # optimizer = precond_sgd(preconditioner = "full"),
-  optimizer = adamW(),
-  seed = seed
-)
-
+scale_t <- as.numeric(scale(Time.t))
+data <- data.frame(y = Observed.t, time = Time.t, scale_t = scale_t)
 
 ###### Model for the original scale data ######
 time_ar1_gauss_original <- system.time({
   ar1_gauss_original <- ngme(
-    y ~ 1 + f(x, model = ar1(), name = "latent"),
-    data = data.frame(y = Observed.t, x = Time.t),
-    control_opt = control
+    y ~ 1 + scale_t + f(time, model = ar1(), name = "latent"),
+    data = data,
+    control_opt = control_opt(
+      start_sd = 0.1,
+      iterations = 20000,
+      n_batch = 20,
+      rao_blackwell = TRUE,
+      optimizer = adamW(),
+      seed = seed
+    )
   )
 })
 ar1_gauss_original
@@ -149,9 +147,20 @@ ggsave("Figures/bio/bio_grasshopper_traceplot_gaussian.png", p, width = 8, heigh
 
 time_ar1_nig_original <- system.time({
   ar1_nig_original <- ngme(
-    y ~ 1 + f(x, model = ar1(), noise = noise_nig(), name = "latent"),
-    data = data.frame(y = Observed.t, x = Time.t),
-    control_opt = control
+    y ~ 1 + scale_t + f(time, model = ar1(), noise = noise_nig(), name = "latent"),
+    data = data,
+    control_opt = control_opt(
+      print_check_info = TRUE,
+      start_sd = 0.1,
+      iterations = 20000,
+      n_batch = 20,
+      pflug_alpha = 0.99,
+      trend_lim = 0.15,
+      std_lim = 0.5,
+      rao_blackwell = TRUE,
+      optimizer = adamW(stepsize = 0.03),
+      seed = seed
+    )
   )
 })
 ar1_nig_original
@@ -159,9 +168,16 @@ p <- traceplot(ar1_nig_original)
 ggsave("Figures/bio/bio_grasshopper_traceplot_nig.png", p, width = 8, height = 6)
 
 baseline_original <- ngme(
-  y ~ 1,
-  data = data.frame(y = Observed.t, x = Time.t),
-  control_opt = control
+  y ~ 1 + scale_t,
+  data = data,
+  control_opt = control_opt(
+    start_sd = 0.1,
+    iterations = 3000,
+    n_batch = 30,
+    rao_blackwell = TRUE,
+    optimizer = adamW(),
+    seed = seed
+  )
 )
 
 ###### Cross-validation ######
@@ -175,7 +191,6 @@ cv_time_original <- system.time({
     list(
       ar1_gaussian = ar1_gauss_original,
       ar1_nig = ar1_nig_original,
-      # ar1_nig_mn = ar1_nig_mn_original,
       baseline = baseline_original
     ),
     type = "custom",
@@ -212,10 +227,15 @@ n_train <- 10
 eval_idx <- ord[(n_train + 1):n]
 x_eval_years <- Time.t[eval_idx] # 对应的年份（不等间隔 OK）
 
-gauss_2.5q <- double(n - n_train)
-gauss_97.5q <- double(n - n_train)
-nig_2.5q <- double(n - n_train)
-nig_97.5q <- double(n - n_train)
+pi_labels <- c("90% PI", "95% PI", "99% PI")
+lower_estimators <- c("0.05q", "0.025q", "0.005q")
+upper_estimators <- c("0.95q", "0.975q", "0.995q")
+all_estimators <- c(lower_estimators, upper_estimators)
+
+gauss_lower <- matrix(NA_real_, nrow = n - n_train, ncol = length(pi_labels), dimnames = list(NULL, pi_labels))
+gauss_upper <- matrix(NA_real_, nrow = n - n_train, ncol = length(pi_labels), dimnames = list(NULL, pi_labels))
+nig_lower <- matrix(NA_real_, nrow = n - n_train, ncol = length(pi_labels), dimnames = list(NULL, pi_labels))
+nig_upper <- matrix(NA_real_, nrow = n - n_train, ncol = length(pi_labels), dimnames = list(NULL, pi_labels))
 
 for (seed in 1:1) {
   for (k in seq_along(eval_idx)) {
@@ -230,26 +250,32 @@ for (seed in 1:1) {
     gauss <- predict(
       ar1_gauss_original,
       map = list(latent = Time.t[idx]),
+      data = data.frame(scale_t = scale_t[idx]),
       train_idx = train_idx,
       burnin_size = burnin_size,
       sampling_size = sampling_size,
-      estimator = c("0.025q", "0.975q"),
+      estimator = all_estimators,
       seed = seed
     )
-    gauss_2.5q[k] <- gauss$`0.025q`
-    gauss_97.5q[k] <- gauss$`0.975q`
+    for (j in seq_along(pi_labels)) {
+      gauss_lower[k, j] <- gauss[[lower_estimators[j]]]
+      gauss_upper[k, j] <- gauss[[upper_estimators[j]]]
+    }
 
     nig <- predict(
       ar1_nig_original,
       map = list(latent = Time.t[idx]),
+      data = data.frame(scale_t = scale_t[idx]),
       train_idx = train_idx,
       burnin_size = burnin_size,
       sampling_size = sampling_size,
-      estimator = c("0.025q", "0.975q"),
+      estimator = all_estimators,
       seed = seed
     )
-    nig_2.5q[k] <- nig$`0.025q`
-    nig_97.5q[k] <- nig$`0.975q`
+    for (j in seq_along(pi_labels)) {
+      nig_lower[k, j] <- nig[[lower_estimators[j]]]
+      nig_upper[k, j] <- nig[[upper_estimators[j]]]
+    }
   }
 }
 
@@ -260,38 +286,64 @@ observed_data <- data.frame(
   Abundance = Observed.t[(n_train + 1):n]
 )
 
-# Create a data frame for the predicted data with confidence intervals
-predicted_data <- data.frame(
-  Year = rep(x_eval_years, 2),
-  Model = rep(c("NIG (95% PI)", "Gaussian (95% PI)"), each = length(x_eval_years)),
-  Lower = c(nig_2.5q, gauss_2.5q),
-  Upper = c(nig_97.5q, gauss_97.5q)
-)
-
-# Plot using ggplot2
-ggplot() +
-  geom_line(data = observed_data, aes(x = Year, y = Abundance, linetype = "Observed Data"), color = "black", size = 1.5) +
-  geom_point(data = observed_data, aes(x = Year, y = Abundance), color = "black", size = 2) +
-  geom_ribbon(data = predicted_data, aes(x = Year, ymin = Lower, ymax = Upper, fill = Model), alpha = 0.3) +
-  geom_line(data = predicted_data, aes(x = Year, y = Lower, color = Model), linetype = "dashed", size = 1) +
-  geom_line(data = predicted_data, aes(x = Year, y = Upper, color = Model), linetype = "dashed", size = 1) +
-  scale_color_manual(values = c("blue", "green")) +
-  scale_fill_manual(values = c("blue", "green")) +
-  scale_linetype_manual(values = c("solid"), name = "", labels = c("Observed Data")) +
-  labs(
-    x = NULL,
-    y = NULL
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16),
-    axis.text = element_text(size = 12),
-    axis.title = element_text(size = 14),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 14),
-    legend.position = "bottom"
+# Create a data frame for the predicted data with prediction intervals
+predicted_data_list <- vector("list", length(pi_labels) * 2)
+list_idx <- 1
+for (j in seq_along(pi_labels)) {
+  predicted_data_list[[list_idx]] <- data.frame(
+    Year = x_eval_years,
+    Model = "NIG",
+    Interval = pi_labels[j],
+    Lower = nig_lower[, j],
+    Upper = nig_upper[, j]
   )
-ggsave("Figures/grasshopper_predictions.png", width = 6, height = 4)
+  list_idx <- list_idx + 1
+
+  predicted_data_list[[list_idx]] <- data.frame(
+    Year = x_eval_years,
+    Model = "Gaussian",
+    Interval = pi_labels[j],
+    Lower = gauss_lower[, j],
+    Upper = gauss_upper[, j]
+  )
+  list_idx <- list_idx + 1
+}
+predicted_data <- do.call(rbind, predicted_data_list)
+
+# Plot and save each PI level separately (90, 95, 99)
+for (interval_label in pi_labels) {
+  interval_data <- predicted_data[predicted_data$Interval == interval_label, ]
+  p_interval <- ggplot() +
+    geom_line(data = observed_data, aes(x = Year, y = Abundance, linetype = "Observed Data"), color = "black", size = 1.5) +
+    geom_point(data = observed_data, aes(x = Year, y = Abundance), color = "black", size = 2) +
+    geom_ribbon(data = interval_data, aes(x = Year, ymin = Lower, ymax = Upper, fill = Model), alpha = 0.3) +
+    geom_line(data = interval_data, aes(x = Year, y = Lower, color = Model), linetype = "dashed", size = 1) +
+    geom_line(data = interval_data, aes(x = Year, y = Upper, color = Model), linetype = "dashed", size = 1) +
+    scale_color_manual(values = c("NIG" = "blue", "Gaussian" = "green")) +
+    scale_fill_manual(values = c("NIG" = "blue", "Gaussian" = "green")) +
+    scale_linetype_manual(values = c("solid"), name = "", labels = c("Observed Data")) +
+    labs(
+      title = interval_label,
+      x = NULL,
+      y = NULL
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 14),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 14),
+      legend.position = "bottom"
+    )
+
+  interval_tag <- sub("% PI", "PI", interval_label)
+  ggsave(paste0("Figures/grasshopper_predictions_", interval_tag, ".png"), p_interval, width = 6, height = 4)
+
+  if (interval_label == "95% PI") {
+    ggsave("Figures/grasshopper_predictions.png", p_interval, width = 6, height = 4)
+  }
+}
 
 
 # Observe the latent states
