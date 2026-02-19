@@ -142,8 +142,38 @@ time_ar1_gauss_original <- system.time({
 })
 ar1_gauss_original
 p <- traceplot(ar1_gauss_original)
-ggsave("Figures/bio/bio_grasshopper_traceplot_gaussian.png", p, width = 8, height = 6)
+ggsave("Figures/grasshopper_traceplot_gaussian.png", p, width = 8, height = 6)
 
+
+# Computing the posterior samples using SGLD
+gauss_samples <- compute_ngme_sgld_samples(
+  fit = ar1_gauss_original,
+  iterations = 4000,
+  optimizer = sgld(stepsize = 0.001),
+  burnin = 100,
+  n_batch = 20,
+  n_parallel_chain = 8,
+  alpha = 0.55,
+  t0 = 0,
+  start_sd = 0.2,
+  burnin_iter = 0,
+  seed = seed,
+  verbose = FALSE,
+  name = "all"
+)
+gauss_refit <- attr(gauss_samples, "refit")
+traceplot(gauss_refit)
+
+gauss_ci <- ngme_sgld_ci(
+  gauss_samples,
+  lower = 0.025, upper = 0.975
+)
+# The posterior mean and 95% credible interval for the regression coefficients
+gauss_ci$estimates
+gauss_ci$ci
+
+
+###### NIG model ######
 
 time_ar1_nig_original <- system.time({
   ar1_nig_original <- ngme(
@@ -154,19 +184,52 @@ time_ar1_nig_original <- system.time({
       start_sd = 0.1,
       iterations = 20000,
       n_batch = 20,
-      pflug_alpha = 0.99,
+      pflug_alpha = 0.95,
       trend_lim = 0.15,
       std_lim = 0.5,
       rao_blackwell = TRUE,
-      optimizer = adamW(stepsize = 0.03),
+      optimizer = adamW(stepsize = 0.01),
       seed = seed
     )
   )
 })
 ar1_nig_original
 p <- traceplot(ar1_nig_original)
-ggsave("Figures/bio/bio_grasshopper_traceplot_nig.png", p, width = 8, height = 6)
+ggsave("Figures/bio_grasshopper_traceplot_nig.png", p, width = 8, height = 6)
 
+
+# Computing the posterior samples using SGLD
+nig_samples <- compute_ngme_sgld_samples(
+  fit = ar1_nig_original,
+  iterations = 4000,
+  optimizer = sgld(stepsize = 0.001),
+  burnin = 100,
+  n_batch = 20,
+  n_parallel_chain = 8,
+  alpha = 0.55,
+  t0 = 0,
+  start_sd = 0.2,
+  burnin_iter = 0,
+  seed = seed,
+  verbose = FALSE,
+  name = "all"
+)
+nig_refit <- attr(nig_samples, "refit")
+traceplot(ar1_nig_original)
+traceplot(nig_refit)
+
+nig_ci <- ngme_sgld_ci(
+  nig_samples,
+  lower = 0.025, upper = 0.975
+)
+nig_ci$estimates
+nig_ci$ci
+
+
+
+###### Cross-validation ######
+
+# Baseline model for comparison
 baseline_original <- ngme(
   y ~ 1 + scale_t,
   data = data,
@@ -180,7 +243,7 @@ baseline_original <- ngme(
   )
 )
 
-###### Cross-validation ######
+
 splits <- make_time_series_cv_index(
   time_idx = 1:length(Time.t),
   train_length = min(10, floor(n * 0.7)) # Adjust train_length based on dataset size
@@ -189,8 +252,8 @@ splits <- make_time_series_cv_index(
 cv_time_original <- system.time({
   cv_results_original <- ngme2::cross_validation(
     list(
-      ar1_gaussian = ar1_gauss_original,
-      ar1_nig = ar1_nig_original,
+      ar1_gaussian = gauss_refit,
+      ar1_nig = nig_refit,
       baseline = baseline_original
     ),
     type = "custom",
@@ -212,11 +275,6 @@ times <- c(
   cv_time_original = cv_time_original[3]
 )
 times
-
-save(ar1_gauss_original, ar1_nig_original, times, cv_results_original, file = "Code/bio/bio_fit_results.RData")
-load("Code/bio/bio_fit_results.RData")
-ar1_gauss_original
-ar1_nig_original
 
 
 ##### Plot rolling window prediction ######
@@ -319,17 +377,23 @@ for (interval_label in pi_labels) {
     geom_ribbon(data = interval_data, aes(x = Year, ymin = Lower, ymax = Upper, fill = Model), alpha = 0.3) +
     geom_line(data = interval_data, aes(x = Year, y = Lower, color = Model), linetype = "dashed", size = 1) +
     geom_line(data = interval_data, aes(x = Year, y = Upper, color = Model), linetype = "dashed", size = 1) +
-    scale_color_manual(values = c("NIG" = "blue", "Gaussian" = "green")) +
-    scale_fill_manual(values = c("NIG" = "blue", "Gaussian" = "green")) +
+    scale_color_manual(
+      values = c("NIG" = "blue", "Gaussian" = "green"),
+      labels = c("NIG" = paste0("NIG (", interval_label, ")"), "Gaussian" = paste0("Gaussian (", interval_label, ")"))
+    ) +
+    scale_fill_manual(
+      values = c("NIG" = "blue", "Gaussian" = "green"),
+      labels = c("NIG" = paste0("NIG (", interval_label, ")"), "Gaussian" = paste0("Gaussian (", interval_label, ")"))
+    ) +
     scale_linetype_manual(values = c("solid"), name = "", labels = c("Observed Data")) +
     labs(
-      title = interval_label,
+      title = NULL,
       x = NULL,
       y = NULL
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(hjust = 0.5, size = 16),
+      plot.title = element_blank(),
       axis.text = element_text(size = 12),
       axis.title = element_text(size = 14),
       legend.title = element_blank(),
