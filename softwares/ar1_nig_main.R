@@ -50,20 +50,23 @@ ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1))
 
 
 # generate posterior samples
-ngme_samples <- compute_ngme_sgld_samples(
-  fit = res,
-  iterations = 1000,
-  optimizer = sgld(stepsize = 0.001),
-  burnin = 10,
-  n_parallel_chain = 8,
-  alpha = 0.55,
-  t0 = 0,
-  start_sd = 0.01,
-  burnin_iter = 0,
-  seed = seed,
-  verbose = TRUE,
-  name = "all"
+time_ngme_samples <- system.time(
+  ngme_samples <- compute_ngme_sgld_samples(
+    fit = res,
+    iterations = 500,
+    optimizer = sgld(stepsize = 0.001),
+    burnin = 10,
+    n_parallel_chain = 8,
+    alpha = 0.55,
+    t0 = 0,
+    start_sd = 0.01,
+    burnin_iter = 0,
+    seed = seed,
+    verbose = TRUE,
+    name = "all"
+  )
 )
+time_ngme_samples
 ngme_refit <- attr(ngme_samples, "refit")
 ngme2::traceplot(ngme_refit)
 
@@ -133,6 +136,27 @@ names(stan_est) <- c("mu", "sigma", "rho", "sigma_eps", "nu")
 stan_est
 
 
+# Obtain the transformed 95 CI
+posts <- as.data.frame(fit_mcmc)
+
+posts$mu <- posts$mu
+posts$sigma <- exp(posts$log_sigma)
+posts$sigma_eps <- exp(posts$log_sigma_eps)
+posts$nu <- exp(posts$log_nu)
+posts$rho <- tanh(posts$rho_un)
+
+mcmc_summary_tab <- data.frame(
+  mean = colMeans(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")]),
+  sd   = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, sd),
+  q025 = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, quantile, 0.025),
+  q975 = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, quantile, 0.975)
+)
+print(mcmc_summary_tab)
+
+
+
+
+
 ######## TMBStan ########
 obj_random_WV <- MakeADFun(data_list, par_list, DLL = "ar1_nig", random = c("W", "logV"))
 
@@ -170,6 +194,27 @@ tmbstan_est <- c(
 )
 names(tmbstan_est) <- c("mu", "sigma", "rho", "sigma_eps", "nu")
 tmbstan_est
+
+
+# Obtain the transformed 95 CI
+posts <- as.data.frame(fit_random_WV)
+
+posts$mu <- posts$mu
+posts$sigma <- exp(posts$log_sigma)
+posts$sigma_eps <- exp(posts$log_sigma_eps)
+posts$nu <- exp(posts$log_nu)
+posts$rho <- tanh(posts$rho_un)
+
+tmbstan_summary_tab <- data.frame(
+  mean = colMeans(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")]),
+  sd   = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, sd),
+  q025 = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, quantile, 0.025),
+  q975 = apply(posts[, c("mu", "sigma", "sigma_eps", "nu", "rho")], 2, quantile, 0.975)
+)
+print(tmbstan_summary_tab)
+
+
+
 
 ######## NGVB failed to run ########
 # library(INLA)
@@ -233,9 +278,14 @@ md_content <- c(
   paste("- **tmbstan:**", as.character(packageVersion("tmbstan"))),
   "",
   "## ngme",
-  "### Execution Time",
+  "### Execution Time (estimation)",
   "```",
   paste(capture.output(print(time_ngme)), collapse = "\n"),
+  "```",
+  "",
+  "### Execution Time (sampling)",
+  "```",
+  paste(capture.output(print(time_ngme_samples)), collapse = "\n"),
   "```",
   "",
   "### Estimates",
@@ -259,6 +309,11 @@ md_content <- c(
   paste(capture.output(print(fit_mcmc, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), digits = 3)), collapse = "\n"),
   "```",
   "",
+  "### 95 CI",
+  "```",
+  paste(capture.output(print(mcmc_summary_tab)), collapse = "\n"),
+  "```",
+  "",
   "## TMBStan(Laplace)",
   "### Execution Time",
   "```",
@@ -268,6 +323,11 @@ md_content <- c(
   "### Fit Summary",
   "```",
   paste(capture.output(print(fit_random_WV, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), digits = 3)), collapse = "\n"),
+  "```",
+  "",
+  "### 95 CI",
+  "```",
+  paste(capture.output(print(tmbstan_summary_tab)), collapse = "\n"),
   "```",
   "",
   "## Comparison",
