@@ -13,9 +13,28 @@ plot(W, type = "l")
 x <- 1:500
 time_ngme <- system.time(
   res <- ngme(
-    Y ~ 0 + f(x, model = ar1(), noise = noise_nig()),
+    Y ~ 0 + f(x,
+      model = ar1(),
+      prior = priors(
+        rho = prior_normal(0, 2)
+      ),
+      noise = noise_nig(
+        prior = priors(
+          mu = prior_normal(0, 10),
+          sigma = prior_normal(0, 2),
+          nu = prior_normal(0, 2)
+        )
+      )
+    ),
+    family = noise_normal(
+      prior = priors(
+        sigma = prior_normal(0, 2)
+      )
+    ),
     data = data.frame(Y = Y, x = x),
     control_opt = control_opt(
+      std_lim = 0.5,
+      trend_lim = 0.05,
       print_check_info = TRUE,
       seed = seed,
       n_batch = 20,
@@ -27,7 +46,34 @@ time_ngme <- system.time(
 )
 time_ngme
 summary(res)
-ngme2::traceplot(res, "field1", hline = c(0.8, 3, 2, 0.4))
+ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1))
+
+
+# generate posterior samples
+ngme_samples <- compute_ngme_sgld_samples(
+  fit = res,
+  iterations = 1000,
+  optimizer = sgld(stepsize = 0.001),
+  burnin = 10,
+  n_parallel_chain = 8,
+  alpha = 0.55,
+  t0 = 0,
+  start_sd = 0.01,
+  burnin_iter = 0,
+  seed = seed,
+  verbose = TRUE,
+  name = "all"
+)
+ngme_refit <- attr(ngme_samples, "refit")
+ngme2::traceplot(ngme_refit)
+
+ngme_ci <- ngme_sgld_ci(
+  ngme_samples,
+  lower = 0.025, upper = 0.975
+)
+# The posterior mean and 95% credible interval for the regression coefficients
+ngme_ci$estimates
+ngme_ci$ci
 
 
 ######## Stan MCMC ########
@@ -61,7 +107,7 @@ time_stan <- system.time(
     warmup = 1000,
     cores  = 4,
     seed   = seed,
-    init   = "random" # 也可以给定 par_list
+    init   = "random"
   )
 )
 time_stan
@@ -139,9 +185,8 @@ tmbstan_est
 
 
 ######## Compare ########
-r <- ngme_result(res, "field1")
-ngme_noise <- noise_nig(mu = r$mu, nu = r$nu, sigma = r$sigma)
-
+r <- ngme_ci$estimates
+ngme_noise <- noise_nig(mu = r["mu (field1)"], nu = r["nu (field1)"], sigma = r["sigma (field1)"])
 stan_noise <- noise_nig(mu = stan_est["mu"], sigma = stan_est["sigma"], nu = stan_est["nu"])
 tmbstan_noise <- noise_nig(mu = tmbstan_est["mu"], sigma = tmbstan_est["sigma"], nu = tmbstan_est["nu"])
 
@@ -171,3 +216,68 @@ tmbstan_est
 
 table <- rbind(true_est, ngme_est, stan_est, tmbstan_est)
 table
+
+
+
+# Save the final result
+file_addr <- "software_result.md"
+
+md_content <- c(
+  "# Simulation Results",
+  "",
+  paste("**Date:**", Sys.Date()),
+  "",
+  "**Package Versions:**",
+  paste("- **ngme2:**", as.character(packageVersion("ngme2"))),
+  paste("- **TMB:**", as.character(packageVersion("TMB"))),
+  paste("- **tmbstan:**", as.character(packageVersion("tmbstan"))),
+  "",
+  "## ngme",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(time_ngme)), collapse = "\n"),
+  "```",
+  "",
+  "### Estimates",
+  "```",
+  paste(capture.output(print(ngme_ci$estimates)), collapse = "\n"),
+  "```",
+  "",
+  "### Credible Intervals",
+  "```",
+  paste(capture.output(print(ngme_ci$ci)), collapse = "\n"),
+  "```",
+  "",
+  "## MCMC",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(time_stan)), collapse = "\n"),
+  "```",
+  "",
+  "### Fit Summary",
+  "```",
+  paste(capture.output(print(fit_mcmc, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), digits = 3)), collapse = "\n"),
+  "```",
+  "",
+  "## TMBStan(Laplace)",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(time_fit_random_WV)), collapse = "\n"),
+  "```",
+  "",
+  "### Fit Summary",
+  "```",
+  paste(capture.output(print(fit_random_WV, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), digits = 3)), collapse = "\n"),
+  "```",
+  "",
+  "## Comparison",
+  "### Parameter Estimates",
+  paste(capture.output(knitr::kable(table, format = "markdown", digits = 4)), collapse = "\n"),
+  "",
+  "### KLD Result",
+  "```",
+  paste(capture.output(print(result)), collapse = "\n"),
+  "```"
+)
+
+writeLines(md_content, file_addr)
