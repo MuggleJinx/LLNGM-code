@@ -67,7 +67,7 @@ fit_nig_ns <- ngme(
   control_opt = control_opt(
     sampling_strategy = "ws",
     n_parallel_chain = 4,
-    iterations = 300,
+    iterations = 400,
     optimizer = precond_sgd(),
     seed = 1,
     pflug_alpha = 0.99,

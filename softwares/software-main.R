@@ -249,11 +249,11 @@ result
 
 true_est <- c(mu = 3, sigma = 2, rho = 0.8, sigma_eps = 1, nu = 0.4)
 ngme_est <- c(
-  mu = r$mu,
-  sigma = r$sigma,
-  rho = r$rho,
-  sigma_eps = ngme_result(res, "data")$sigma,
-  nu = r$nu
+  mu = r[["mu (field1)"]],
+  sigma = r[["sigma (field1)"]],
+  rho = r[["rho (field1)"]],
+  sigma_eps = ngme_result(res, "data")[["sigma"]],
+  nu = r[["nu (field1)"]]
 )
 ngme_est
 stan_est

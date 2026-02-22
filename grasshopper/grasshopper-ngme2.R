@@ -1,6 +1,6 @@
 library(ngme2)
 library(ggplot2)
-seed <- 123
+seed <- 233
 set.seed(seed)
 
 datasets <- list(
@@ -420,3 +420,68 @@ for (interval_label in pi_labels) {
 # lines(Time.t, pred_ar1_gauss_original$mean, col = "green", lwd = 2)
 # legend("topright", legend = c("Observed Data", "NIG", "Gaussian"), col = c("black", "blue", "green"), lwd = 2)
 # points(Time.t, Observed.t, col = "black", pch = 19)
+
+# Save the final result to md
+file_addr <- "grasshopper/grasshopper_result.md"
+if (!dir.exists("grasshopper")) {
+  file_addr <- "grasshopper_result.md" # fallback if already in grasshopper/
+}
+
+md_content <- c(
+  "# Grasshopper Model Results",
+  "",
+  paste("**Date:**", Sys.Date()),
+  "",
+  "**Package Versions:**",
+  paste("- **ngme2:**", as.character(packageVersion("ngme2"))),
+  "",
+  "## Gaussian Model",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(time_ar1_gauss_original)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Estimates",
+  "```",
+  paste(capture.output(print(gauss_ci$estimates)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Credible Intervals",
+  "```",
+  paste(capture.output(print(gauss_ci$ci)), collapse = "\n"),
+  "```",
+  "",
+  "## NIG Model",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(time_ar1_nig_original)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Estimates",
+  "```",
+  paste(capture.output(print(nig_ci$estimates)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Credible Intervals",
+  "```",
+  paste(capture.output(print(nig_ci$ci)), collapse = "\n"),
+  "```",
+  "",
+  "## Cross Validation Results",
+  "### Execution Time",
+  "```",
+  paste(capture.output(print(cv_time_original)), collapse = "\n"),
+  "```",
+  "",
+  "### Result",
+  "```",
+  paste(capture.output(print(cv_results_original)), collapse = "\n"),
+  "```",
+  "",
+  "## Summary of Times",
+  "```",
+  paste(capture.output(print(times)), collapse = "\n"),
+  "```"
+)
+
+writeLines(md_content, file_addr)

@@ -1,6 +1,4 @@
 seed <- 123
-library(INLA)
-library(inlabru)
 set.seed(seed)
 library(tidyverse)
 library(ngme2)
@@ -55,51 +53,29 @@ length(meshs)
 control_opt <- control_opt(
   optimizer = adamW(),
   estimation = TRUE,
-  iterations = 10000,
+  iterations = 3000,
   print_check_info = TRUE,
-  n_batch = 5,
+  n_batch = 20,
   n_parallel_chain = 4,
   rao_blackwellization = TRUE,
   verbose = TRUE,
   seed = seed
 )
-# --------------------- compare with INLA -----------------
 
-# ran <- range(srft_data_sub$fu); ran
-# mesh = fmesher::fm_mesh_1d(seq(ran[1], ran[2], length=100))
-
-# # Fit INLA model equivalent to fit_gauss
-# spde <- inla.spde2.pcmatern(
-#   # Mesh and smoothness parameter
-#   mesh = mesh, alpha = 2,
-#   # P(practic.range < 0.3) = 0.5
-#   prior.range = c(0.3, 0.05),
-#   # P(sigma > 1) = 0.01
-#   prior.sigma = c(10, 0.001)
-# )
-
-# bru_fit <- bru(
-#   log_egfr ~ sex + bage +
-#     Intercept(1) +
-#     f(id, model = "iid") +
-#     spde(fu,
-#       model = spde,
-#       replicate = id
-#     ),
-#   data = srft_data_sub
-# )
-# summary(bru_fit)
 
 time_gauss <- system.time({
   fit_gauss <- ngme(
     log_egfr ~
       sex + bage +
-      f(id, model = iid()) +
+      f(id, model = iid(), noise = noise_normal(sigma = 4)) +
       f(fu,
         model = matern(mesh = meshs, kappa = 2),
         noise = noise_normal(),
         replicate = id
       ),
+    control_ngme = control_ngme(
+      beta = c(1, -0.07, 0)
+    ),
     data = srft_data_sub,
     control_opt = control_opt
   )
@@ -108,16 +84,46 @@ fit_gauss
 traceplot(fit_gauss, "field1")
 traceplot(fit_gauss, "field2")
 traceplot(fit_gauss)
-save(fit_gauss, file = "Code/srft_fit/fit_gauss.rda")
-load("Code/srft_fit/fit_gauss.rda")
+save(fit_gauss, file = "model-fits/srft_fit-fit_gauss.rda")
+load("model-fits/srft_fit-fit_gauss.rda")
 
+
+gauss_samples <- compute_ngme_sgld_samples(
+  fit = fit_gauss,
+  iterations = 1000,
+  optimizer = sgld(stepsize = 0.0005),
+  burnin = 10,
+  n_batch = 20,
+  n_parallel_chain = 4,
+  alpha = 0.55,
+  t0 = 0,
+  start_sd = 0.01,
+  burnin_iter = 0,
+  seed = seed,
+  verbose = TRUE,
+  name = "all"
+)
+gauss_refit <- attr(gauss_samples, "refit")
+traceplot(gauss_refit)
+
+gauss_ci <- ngme_sgld_ci(
+  gauss_samples,
+  lower = 0.025, upper = 0.975
+)
+# The posterior mean and 95% credible interval for the regression coefficients
+gauss_ci$estimates
+gauss_ci$ci
+
+
+
+###### NIG model ######
 
 control_opt_nig <- control_opt(
-  optimizer = adamW(),
   estimation = TRUE,
-  iterations = 12000,
+  optimizer = adamW(),
+  iterations = 2000,
   print_check_info = TRUE,
-  n_batch = 60,
+  n_batch = 20,
   n_parallel_chain = 4,
   rao_blackwellization = TRUE,
   verbose = TRUE,
@@ -130,11 +136,12 @@ time_nig <- system.time({
       sex + bage +
       f(id, model = iid()) +
       f(fu,
-        model = matern(mesh = meshs, kappa = 2),
+        model = matern(mesh = meshs),
         noise = noise_nig(),
         replicate = id
       ),
     data = srft_data_sub,
+    start = fit_gauss,
     control_opt = control_opt_nig
   )
 })[[3]]
@@ -142,8 +149,39 @@ fit_nig
 traceplot(fit_nig, "field1")
 traceplot(fit_nig, "field2")
 traceplot(fit_nig)
-save(fit_nig, file = "Code/srft_fit/fit_nig.rda")
-load("Code/srft_fit/fit_nig.rda")
+save(fit_nig, file = "model-fits/srft_fit-fit_nig.rda")
+load("model-fits/srft_fit-fit_nig.rda")
+
+
+nig_samples <- compute_ngme_sgld_samples(
+  fit = fit_nig,
+  iterations = 1000,
+  optimizer = sgld(stepsize = 0.0005),
+  burnin = 10,
+  n_batch = 20,
+  n_parallel_chain = 4,
+  alpha = 0.55,
+  t0 = 0,
+  start_sd = 0.01,
+  burnin_iter = 0,
+  seed = seed,
+  verbose = TRUE,
+  name = "all"
+)
+nig_refit <- attr(nig_samples, "refit")
+traceplot(nig_refit)
+
+nig_ci <- ngme_sgld_ci(
+  nig_samples,
+  lower = 0.025, upper = 0.975
+)
+# The posterior mean and 95% credible interval for the regression coefficients
+nig_ci$estimates
+nig_ci$ci
+
+
+
+
 
 time_cv <- system.time({
   cv <- cross_validation(
@@ -161,41 +199,61 @@ time_cv <- system.time({
   )
 })[[3]]
 cv
-save(cv, file = "Code/srft_fit/cv.rda")
-load("Code/srft_fit/cv.rda")
+save(cv, file = "model-fits/srft_fit-cv.rda")
+load("model-fits/srft_fit-cv.rda")
 
 # save fit_gauss, fit_nig, cv to report.md
-file_addr <- "Code/srft_fit/srft_result_500.md"
-if (!file.exists(file_addr)) {
-  file.create(file_addr)
-} else {
-  file.remove(file_addr)
-  file.create(file_addr)
-}
+file_addr <- "srft/srft_result_500.md"
 
-# Capture and write fit_gauss output
-cat("# SRFT Model Fitting Results\n\n", file = file_addr, append = TRUE)
-cat("## Gaussian Model (fit_gauss)\n\n", file = file_addr, append = TRUE)
-cat("```\n", file = file_addr, append = TRUE)
-cat(capture.output(print(fit_gauss)), sep = "\n", file = file_addr, append = TRUE)
-cat("\n```\n\n", file = file_addr, append = TRUE)
+md_content <- c(
+  "# SRFT Model Fitting Results",
+  "",
+  paste("**Date:**", Sys.Date()),
+  "",
+  "**Package Versions:**",
+  paste("- **ngme2:**", as.character(packageVersion("ngme2"))),
+  "",
+  "## Gaussian Model",
+  "```",
+  paste(capture.output(print(fit_gauss)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Estimates",
+  "```",
+  paste(capture.output(print(gauss_ci$estimates)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Credible Intervals",
+  "```",
+  paste(capture.output(print(gauss_ci$ci)), collapse = "\n"),
+  "```",
+  "",
+  "## NIG Model",
+  "```",
+  paste(capture.output(print(fit_nig)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Estimates",
+  "```",
+  paste(capture.output(print(nig_ci$estimates)), collapse = "\n"),
+  "```",
+  "",
+  "### SGLD Credible Intervals",
+  "```",
+  paste(capture.output(print(nig_ci$ci)), collapse = "\n"),
+  "```",
+  "",
+  "## Cross Validation Results",
+  "```",
+  paste(capture.output(print(cv$mean.scores)), collapse = "\n"),
+  "```",
+  "",
+  "## Time Results",
+  "```",
+  paste(capture.output(print(time_gauss)), collapse = "\n"),
+  paste(capture.output(print(time_nig)), collapse = "\n"),
+  paste(capture.output(print(time_cv)), collapse = "\n"),
+  "```"
+)
 
-# Capture and write fit_nig output
-cat("## NIG Model (fit_nig)\n\n", file = file_addr, append = TRUE)
-cat("```\n", file = file_addr, append = TRUE)
-cat(capture.output(print(fit_nig)), sep = "\n", file = file_addr, append = TRUE)
-cat("\n```\n\n", file = file_addr, append = TRUE)
-
-# Capture and write cv output
-cat("## Cross Validation Results\n\n", file = file_addr, append = TRUE)
-cat("```\n", file = file_addr, append = TRUE)
-cat(capture.output(print(cv$mean.scores)), sep = "\n", file = file_addr, append = TRUE)
-cat("\n```\n\n", file = file_addr, append = TRUE)
-
-# Time results
-cat("## Time Results\n\n", file = file_addr, append = TRUE)
-cat("```\n", file = file_addr, append = TRUE)
-cat(capture.output(print(time_gauss)), sep = "\n", file = file_addr, append = TRUE)
-cat(capture.output(print(time_nig)), sep = "\n", file = file_addr, append = TRUE)
-cat(capture.output(print(time_cv)), sep = "\n", file = file_addr, append = TRUE)
-cat("\n```\n\n", file = file_addr, append = TRUE)
+writeLines(md_content, file_addr)
