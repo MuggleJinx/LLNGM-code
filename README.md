@@ -19,7 +19,7 @@ This repository specifically focuses on:
 * `grasshopper/`: Reproduction scripts for Section 5: Wildlife population dynamics (NIG-AR1).
 * `srft/`: Reproduction scripts and data for Section 5: Longitudinal eGFR data for 22,910 patients.
 * `wind/`: Reproduction scripts and data for Section 5: Bivariate spatio-temporal modeling of wind vectors.
-* `softwares/`: Benchmark scripts for Section 6: Compares `ngme2` vs. `Stan` vs. `TMB` (Table 7).
+* `softwares/`: Benchmark scripts for Section 6: Compares `ngme2` vs. `Stan` vs. `TMB` (Table 8).
 
 ---
 
