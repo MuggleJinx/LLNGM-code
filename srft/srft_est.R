@@ -104,6 +104,8 @@ gauss_samples <- compute_ngme_sgld_samples(
   name = "all"
 )
 gauss_refit <- attr(gauss_samples, "refit")
+save(gauss_refit, file = "model-fits/srft_fit-gauss_refit.rda")
+load("model-fits/srft_fit-gauss_refit.rda")
 traceplot(gauss_refit)
 
 gauss_ci <- ngme_sgld_ci(
@@ -169,6 +171,8 @@ nig_samples <- compute_ngme_sgld_samples(
   name = "all"
 )
 nig_refit <- attr(nig_samples, "refit")
+save(nig_refit, file = "model-fits/srft_fit-nig_refit.rda")
+load("model-fits/srft_fit-nig_refit.rda")
 traceplot(nig_refit)
 
 nig_ci <- ngme_sgld_ci(
@@ -186,8 +190,8 @@ nig_ci$ci
 time_cv <- system.time({
   cv <- cross_validation(
     list(
-      gauss = fit_gauss,
-      nig = fit_nig
+      gauss = gauss_refit,
+      nig = nig_refit
     ),
     k = 10,
     N = 4,
