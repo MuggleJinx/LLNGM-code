@@ -40,12 +40,13 @@ mesh_t$n
 
 ####### Gaussian ########
 
+# center the lon, lat in fixed effects
+
 gauss_time <- Sys.time()
 fit_gauss <- ngme(
-  formula = wind ~
-    fe(~ 0 + 1, which = "u_wind") +
-    fe(~ 0 + lon, which = "u_wind") +
-    fe(~ 0 + lat, which = "v_wind") +
+  formula = wind ~ 0 +
+    fe(~ 1 + lon, which = "u_wind") +
+    fe(~ 1 + lat, which = "v_wind") +
     f(
       map = list(
         ~hour,
@@ -93,10 +94,9 @@ fit_gauss <- readRDS("model-fits/wind-fit-gauss.rds")
 
 nig_time <- Sys.time()
 fit_nig <- ngme(
-  formula = wind ~
-    fe(~ 0 + 1, which = "u_wind") +
-    fe(~ 0 + lon, which = "u_wind") +
-    fe(~ 0 + lat, which = "v_wind") +
+  formula = wind ~ 0 +
+    fe(~ 1 + lon, which = "u_wind") +
+    fe(~ 1 + lat, which = "v_wind") +
     f(
       map = list(
         ~hour,
@@ -114,10 +114,7 @@ fit_nig <- ngme(
         )
       ),
       noise = noise_nig(
-        fix_theta_sigma = TRUE,
-        prior = priors(
-          nu = prior_normal(0, 0.1)
-        )
+        fix_theta_sigma = TRUE
       )
     ),
   group = data_long$direction,
@@ -128,7 +125,7 @@ fit_nig <- ngme(
     verbose = TRUE,
     optimizer = precond_sgd(),
     burnin = 100,
-    iterations = 120,
+    iterations = 200,
     n_batch = 10,
     seed = 1,
     start_sd = 0.01,
@@ -145,8 +142,6 @@ fit_nig <- readRDS("model-fits/wind-fit-nig.rds")
 
 ####### CV ########
 
-
-
 cv_splits <- create_paired_cv_splits(data_long, loc_col = c("lon", "lat"), group = "direction", k = 10, seed = 123)
 
 cv <- cross_validation(
@@ -158,7 +153,7 @@ cv <- cross_validation(
   test_idx = cv_splits$test_idx,
   train_idx = cv_splits$train_idx,
   parallel = FALSE,
-  n_gibbs_samples = 200,
+  n_gibbs_samples = 100,
   print = TRUE,
   N_sim = 4,
   seed = 123,

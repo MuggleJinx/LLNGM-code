@@ -68,9 +68,12 @@ lon_range <- c(10, 36)
 lat_range <- c(34, 48)
 wind_data_sub <- wind_data %>%
   filter(
-    hour >= 0 & hour <= 60,
+    hour >= 60 & hour <= 120,
     lon >= lon_range[1] & lon <= lon_range[2],
     lat >= lat_range[1] & lat <= lat_range[2]
+  ) %>%
+  mutate(
+    hour = hour - 60
   )
 
 str(wind_data_sub)

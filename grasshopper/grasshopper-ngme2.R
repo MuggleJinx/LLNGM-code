@@ -1,6 +1,6 @@
 library(ngme2)
 library(ggplot2)
-seed <- 233
+seed <- 235
 set.seed(seed)
 
 datasets <- list(

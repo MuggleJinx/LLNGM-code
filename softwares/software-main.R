@@ -1,6 +1,7 @@
 seed <- 235
 set.seed(seed)
 library(ngme2)
+library(ggplot2)
 
 true_noise <- noise_nig(mu = 3, sigma = 2, nu = 0.4)
 ar1 <- f(1:500, model = ar1(rho = 0.8), noise = true_noise)
@@ -46,8 +47,15 @@ time_ngme <- system.time(
 )
 time_ngme
 summary(res)
-ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1))
-
+traceplot_ngme <- ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1))
+traceplot_ngme <- traceplot_ngme +
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text = element_text(size = 12)
+  )
+traceplot_ngme
+ggsave("Figures/traceplot_ngme.png", traceplot_ngme)
 
 # generate posterior samples
 time_ngme_samples <- system.time(
@@ -153,8 +161,25 @@ mcmc_summary_tab <- data.frame(
 )
 print(mcmc_summary_tab)
 
+# traceplot
+traceplot_stan <- traceplot(fit_mcmc, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), inc_warmup = TRUE)
+ref_data <- data.frame(
+  parameter = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"),
+  true_value = c(3, log(2), 1.09, log(1), log(0.4))
+)
 
-
+traceplot_stan_ref <- traceplot_stan +
+  geom_hline(
+    data = ref_data, aes(yintercept = true_value),
+    color = "blue"
+  ) +
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text = element_text(size = 12)
+  )
+traceplot_stan_ref
+ggsave("Figures/traceplot_stan.png", traceplot_stan_ref)
 
 
 ######## TMBStan ########
@@ -213,7 +238,25 @@ tmbstan_summary_tab <- data.frame(
 )
 print(tmbstan_summary_tab)
 
+# traceplot
+traceplot_tmbstan <- traceplot(fit_random_WV, pars = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"), inc_warmup = TRUE)
+ref_data <- data.frame(
+  parameter = c("mu", "log_sigma", "rho_un", "log_sigma_eps", "log_nu"),
+  true_value = c(3, log(2), 1.09, log(1), log(0.4))
+)
 
+traceplot_tmbstan_ref <- traceplot_tmbstan +
+  geom_hline(
+    data = ref_data, aes(yintercept = true_value),
+    color = "blue"
+  ) +
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text = element_text(size = 12)
+  )
+traceplot_tmbstan_ref
+ggsave("Figures/traceplot_tmbstan.png", traceplot_tmbstan_ref)
 
 
 ######## NGVB failed to run ########
