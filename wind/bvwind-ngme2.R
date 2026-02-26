@@ -78,7 +78,7 @@ fit_gauss <- ngme(
     iterations = 100,
     n_batch = 10,
     seed = 1,
-    start_sd = 0.01,
+    start_sd = 0.001,
     trend_lim = 0.05,
     std_lim = 3
   )
@@ -128,7 +128,7 @@ fit_nig <- ngme(
     iterations = 200,
     n_batch = 10,
     seed = 1,
-    start_sd = 0.01,
+    start_sd = 0.001,
     trend_lim = 0.1,
     std_lim = 2
   )
