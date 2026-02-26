@@ -207,7 +207,7 @@ save(cv, file = "model-fits/srft_fit-cv.rda")
 load("model-fits/srft_fit-cv.rda")
 
 # save fit_gauss, fit_nig, cv to report.md
-file_addr <- "srft/srft_result_500.md"
+file_addr <- "srft/srft_result.md"
 
 md_content <- c(
   "# SRFT Model Fitting Results",
