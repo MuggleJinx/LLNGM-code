@@ -47,7 +47,7 @@ time_ngme <- system.time(
 )
 time_ngme
 summary(res)
-traceplot_ngme <- ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1))
+traceplot_ngme <- ngme2::traceplot(res, hline = c(0.8, 3, 2, 0.4, 1), ncol = 3)
 traceplot_ngme <- traceplot_ngme +
   theme(
     plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
@@ -55,7 +55,7 @@ traceplot_ngme <- traceplot_ngme +
     axis.text = element_text(size = 12)
   )
 traceplot_ngme
-ggsave("Figures/traceplot_ngme.png", traceplot_ngme)
+ggsave("Figures/traceplot_ngme.png", traceplot_ngme, width = 12, height = 8)
 
 # generate posterior samples
 time_ngme_samples <- system.time(
