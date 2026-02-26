@@ -174,9 +174,10 @@ traceplot_stan_ref <- traceplot_stan +
     color = "blue"
   ) +
   theme(
-    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.text = element_text(size = 12)
+    plot.title = element_text(size = 28, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 24, face = "bold"),
+    legend.text = element_text(size = 16),
+    axis.text = element_text(size = 16)
   )
 traceplot_stan_ref
 ggsave("Figures/traceplot_stan.png", traceplot_stan_ref)
@@ -251,9 +252,10 @@ traceplot_tmbstan_ref <- traceplot_tmbstan +
     color = "blue"
   ) +
   theme(
-    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.text = element_text(size = 12)
+    plot.title = element_text(size = 28, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 24, face = "bold"),
+    legend.text = element_text(size = 16),
+    axis.text = element_text(size = 16)
   )
 traceplot_tmbstan_ref
 ggsave("Figures/traceplot_tmbstan.png", traceplot_tmbstan_ref)
