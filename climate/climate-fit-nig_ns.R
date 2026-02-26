@@ -1,4 +1,4 @@
-set.seed(2)
+set.seed(1)
 load("climate/precip.data.Rdata")
 
 library(ngme2)
@@ -67,8 +67,8 @@ fit_nig_ns <- ngme(
     sampling_strategy = "ws",
     n_parallel_chain = 4,
     iterations = 400,
-    optimizer = precond_sgd(),
-    seed = 2,
+    optimizer = precond_sgd(stepsize = 0.5),
+    seed = 1,
     pflug_alpha = 0.99,
     verbose = TRUE
   )
