@@ -1,6 +1,6 @@
 # Bivariate Wind Model Results
 
-**Date:** 2026-02-26
+**Date:** 2026-02-27
 
 **Package Versions:**
 - **ngme2:** 0.9.3
@@ -11,24 +11,24 @@
 
 Fixed effects: 
 (Intercept)_u_wind         lon_u_wind (Intercept)_v_wind         lat_v_wind 
-            2.9595            -0.0934            -8.5506             0.2227 
+            3.1400            -0.0985            -8.8490             0.2285 
 
 Models: 
 $field1
   Model type: Tensor product
       first: AR(1)
-          rho = 0.712
+          rho = 0.717
       second: Bivariate Matern model
           theta = 0 (fixed)
-          rho = 0.342
+          rho = 0.348
           sd1 = 1.84
-          sd2 = 2.51
+          sd2 = 2.66
           u_wind: Matern
               alpha = 2 (fixed)
-              kappa = 0.25
+              kappa = 0.249
           v_wind: Matern
               alpha = 2 (fixed)
-              kappa = 0.144
+              kappa = 0.135
   Noise type: NORMAL
   Noise parameters: 
       sigma = 1
@@ -36,12 +36,12 @@ $field1
 Measurement noise: 
   Noise type: NORMAL
   Noise parameters: 
-      sigma = 0.16
+      sigma = 0.124
 
 
 ```
 **Fitting Time:**
-- **Gaussian:** 3.382029 mins
+- **Gaussian:** 1.483926 mins
 
 ## NIG Model
 ```
@@ -49,50 +49,50 @@ Measurement noise:
 
 Fixed effects: 
 (Intercept)_u_wind         lon_u_wind (Intercept)_v_wind         lat_v_wind 
-            3.0275            -0.0968            -8.9534             0.2339 
+             3.187             -0.102             -8.996              0.234 
 
 Models: 
 $field1
   Model type: Tensor product
       first: AR(1)
-          rho = 0.733
+          rho = 0.731
       second: Bivariate Matern model
-          theta = -0.264
-          rho = 0.223
-          sd1 = 1.85
-          sd2 = 2.47
+          theta = -0.285
+          rho = 0.27
+          sd1 = 1.71
+          sd2 = 2.41
           u_wind: Matern
               alpha = 2 (fixed)
-              kappa = 0.256
+              kappa = 0.24
           v_wind: Matern
               alpha = 2 (fixed)
-              kappa = 0.175
+              kappa = 0.144
   Noise type: NIG
   Noise parameters: 
-      mu = -0.016
+      mu = -0.0161
       sigma = 1
-      nu = 0.056
+      nu = 0.514 (lower bound 0.5)
 
 Measurement noise: 
   Noise type: NORMAL
   Noise parameters: 
-      sigma = 0.0435
+      sigma = 0.0363
 
 
 ```
 **Fitting Time:**
-- **NIG:** 12.37966 mins
+- **NIG:** 7.280567 mins
 
 ## Cross Validation Results
 ```
 $mean.scores
                MAE      MSE  neg.CRPS neg.sCRPS
-bv_gauss 0.8372242 1.055818 0.6374504  1.140199
-bv_nig   0.8502079 1.261055 0.6103421  1.122826
+bv_gauss 0.8321676 1.045948 0.6364401  1.138407
+bv_nig   0.8086304 1.113181 0.6210141  1.115680
 
 $sd.scores
-                MAE        MSE   neg.CRPS   neg.sCRPS
-bv_gauss 0.01138651 0.02634074 0.01279839 0.009154727
-bv_nig   0.05089126 0.22244085 0.05214398 0.025298196
+                 MAE        MSE   neg.CRPS   neg.sCRPS
+bv_gauss 0.009058166 0.02266383 0.01380328 0.008406491
+bv_nig   0.011868250 0.04499339 0.01576624 0.009613860
 
 ```

@@ -75,11 +75,11 @@ fit_gauss <- ngme(
     optimizer = precond_sgd(),
     verbose = TRUE,
     burnin = 100,
-    iterations = 100,
-    n_batch = 10,
+    iterations = 300,
+    n_batch = 20,
     seed = 1,
     start_sd = 0.001,
-    trend_lim = 0.05,
+    trend_lim = 0.1,
     std_lim = 3
   )
 )
@@ -114,7 +114,8 @@ fit_nig <- ngme(
         )
       ),
       noise = noise_nig(
-        fix_theta_sigma = TRUE
+        fix_theta_sigma = TRUE,
+        nu_lower_bound = 0.5
       )
     ),
   group = data_long$direction,
@@ -125,12 +126,12 @@ fit_nig <- ngme(
     verbose = TRUE,
     optimizer = precond_sgd(),
     burnin = 100,
-    iterations = 200,
-    n_batch = 10,
-    seed = 1,
+    iterations = 300,
+    n_batch = 20,
+    seed = 2,
     start_sd = 0.001,
-    trend_lim = 0.1,
-    std_lim = 2
+    trend_lim = 0.2,
+    std_lim = 3
   )
 )
 nig_time <- Sys.time() - nig_time
